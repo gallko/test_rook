@@ -1,21 +1,35 @@
 #pragma once
 
-#include "RemoveCopyMove.h"
-#include "Coordinate.h"
+#include <memory>
 
-template <std::uint8_t SIZE = 8>
+#include "RemoveCopyMove.h"
+
+struct Coordinate;
+namespace chessman {
+    class IChessman;
+}
+
+namespace board {
+
+enum class ErrorCode : std::uint8_t {
+    error, success, occupied_place
+};
+
+enum class PlaceType : std::uint8_t {
+    empty, occupied_by_rook /*, occupied_by_* */
+#ifdef TEST_BUILD
+    , test
+#endif
+};
+
 class IChessBoard : public RemoveCopyMove {
 public:
-    enum class ErrorCode {
-        ERROR, OCCUPIED_PLACE, SUCCESS
-    };
+    ~IChessBoard() override = default;
 
-    static constexpr int getSize()  {
-        return SIZE;
-    }
-
-    virtual ~IChessBoard() = default;
-    virtual ErrorCode moveFigure(Coordinate from, Coordinate to) = 0;
-    virtual ErrorCode placeFigure(Coordinate to) = 0;
-    virtual void removeFigure(Coordinate from);
+    virtual ErrorCode moveFigure(const std::shared_ptr<chessman::IChessman> &figure, const Coordinate &to) = 0;
+    virtual ErrorCode placeFigure(const std::shared_ptr<chessman::IChessman> &figure, const Coordinate &to) = 0;
+    virtual ErrorCode removeFigure(const std::shared_ptr<chessman::IChessman> &figure) = 0;
+    virtual std::uint8_t sizeBoard() const noexcept = 0;
 };
+
+} // board

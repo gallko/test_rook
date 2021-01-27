@@ -1,6 +1,8 @@
 #pragma once
 
 class RemoveCopyMove {
+public:
+    RemoveCopyMove() = default;
     virtual ~RemoveCopyMove() = default;
 
     RemoveCopyMove(const RemoveCopyMove &) = delete;
