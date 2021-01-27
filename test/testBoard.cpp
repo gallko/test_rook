@@ -23,16 +23,17 @@ protected:
 
 class MockIChessman : public chessman::IChessman {
 public:
-    MOCK_CONST_METHOD0(type, chessman::ChessmanType());
-    MOCK_CONST_METHOD0(name, std::string());
-    MOCK_CONST_METHOD0(getCurrentCoordinate, Coordinate());
-    MOCK_METHOD1(setCurrentCoordinate, void(const Coordinate &coordinate));
+    MOCK_METHOD(chessman::ChessmanType, type, (), (const, override));
+    MOCK_METHOD(std::string, name, (), (const, override));
+    MOCK_METHOD(Coordinate, getCurrentCoordinate, (), (const, override));
+    MOCK_METHOD(void, setCurrentCoordinate, (const Coordinate &coordinate), (override));
 };
 
 TEST_F(ChessBoardTest, placeFigure) {
     const auto chessman = std::make_shared<MockIChessman>();
 
-    EXPECT_CALL(*chessman, setCurrentCoordinate(testing::_)).Times(testing::Exactly(0));
+    EXPECT_CALL(*chessman, setCurrentCoordinate(testing::_))
+            .Times(testing::Exactly(2));
     EXPECT_CALL(*chessman, getCurrentCoordinate()).Times(testing::Exactly(0));
     EXPECT_CALL(*chessman, type())
             .Times(testing::Exactly(2))
@@ -47,8 +48,9 @@ TEST_F(ChessBoardTest, placeFigure) {
     EXPECT_EQ(result, board::ErrorCode::success);
 
     EXPECT_THROW(mBoard->placeFigure(chessman, {8, 7}), std::out_of_range);
-
     EXPECT_THROW(mBoard->placeFigure(chessman, {7, 8}), std::out_of_range);
+    EXPECT_THROW(mBoard->placeFigure(chessman, {-1, 5}), std::out_of_range);
+    EXPECT_THROW(mBoard->placeFigure(chessman, {3, -1}), std::out_of_range);
 
     result = mBoard->placeFigure(chessman, {0, 0});
     EXPECT_EQ(result, board::ErrorCode::occupied_place);

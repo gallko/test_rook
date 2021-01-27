@@ -23,6 +23,7 @@ board::ErrorCode ChessBoardImpl::moveFigure(const std::shared_ptr<chessman::IChe
         auto fig_type = figure->type();
         if (place_from == fig_type)
         {
+            figure->setCurrentCoordinate(to);
             place_to = utils::to_enum<board::PlaceType>(fig_type);
             place_from = board::PlaceType::empty;
             error_code = board::ErrorCode::success;
@@ -42,6 +43,7 @@ board::ErrorCode ChessBoardImpl::placeFigure(const std::shared_ptr<chessman::ICh
 
     if (place_to == board::PlaceType::empty)
     {
+        figure->setCurrentCoordinate(to);
         place_to = utils::to_enum<board::PlaceType>(figure->type());
         error_code = board::ErrorCode::success;
     }
@@ -58,6 +60,7 @@ board::ErrorCode ChessBoardImpl::removeFigure(const std::shared_ptr<chessman::IC
     if (place == figure->type())
     {
         place = board::PlaceType::empty;
+        figure->setCurrentCoordinate({});
     } else {
         error_code = board::ErrorCode::error;
     }
@@ -67,12 +70,12 @@ board::ErrorCode ChessBoardImpl::removeFigure(const std::shared_ptr<chessman::IC
 
 inline ChessBoardImpl::Board_t::value_type::reference ChessBoardImpl::getTypePlace(const Coordinate &coordinate)
 {
-    return mBoard.at(coordinate.mX).at(coordinate.mY);
+    return mBoard.at(coordinate.first).at(coordinate.second);
 }
 
 inline constexpr ChessBoardImpl::Board_t::value_type::const_reference ChessBoardImpl::getTypePlace(const Coordinate &coordinate) const
 {
-    return mBoard.at(coordinate.mX).at(coordinate.mY);
+    return mBoard.at(coordinate.first).at(coordinate.second);
 }
 
 uint8_t ChessBoardImpl::sizeBoard() const noexcept {

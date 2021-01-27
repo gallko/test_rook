@@ -10,8 +10,9 @@ constexpr inline bool operator==(const board::PlaceType &typePlace, const chessm
             return false;
         case board::PlaceType::occupied_by_rook:
             return chessmanType == chessman::ChessmanType::rook;
+        default:
+            assert(!"Incorrect value \"typePlace\"");
     }
-    assert(!"Incorrect value \"typePlace\"");
 }
 
 constexpr inline bool operator!=(const board::PlaceType &typePlace, const chessman::ChessmanType &chessmanType) noexcept

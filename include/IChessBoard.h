@@ -3,8 +3,8 @@
 #include <memory>
 
 #include "RemoveCopyMove.h"
+#include "Coordinate.h"
 
-struct Coordinate;
 namespace chessman {
     class IChessman;
 }
