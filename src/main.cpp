@@ -1,4 +1,5 @@
 #include <iostream>
+#include <random>
 
 #include "Coordinate.h"
 #include "IChessBoard.h"

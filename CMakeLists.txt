@@ -15,6 +15,9 @@ endif ()
 set(SOURCES
         src/main.cpp
         src/ChessBoardImpl.cpp
+        src/ChessRookImpl.cpp
+        src/GameRulesImpl.cpp
+        src/ParticipantGame.cpp
 )
 
 add_definitions(-DSIZE_BOARD=8)

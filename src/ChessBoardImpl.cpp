@@ -1,6 +1,6 @@
 #include "ChessBoardImpl.h"
 #include "Coordinate.h"
-#include "IChessman.h"
+#include "IChessMan.h"
 #include "utils.h"
 
 
@@ -11,31 +11,32 @@ ChessBoardImpl::ChessBoardImpl()
 
 }
 
-board::ErrorCode ChessBoardImpl::moveFigure(const std::shared_ptr<chessman::IChessman> &figure, const Coordinate &to)
+board::ErrorCode ChessBoardImpl::moveFigure(const std::shared_ptr<chessman::IChessMan> &figure, const Coordinate &to)
 {
     auto error_code = board::ErrorCode::error;
     auto lock = std::unique_lock(mMutex);
     auto &place_to = getTypePlace(to);
+    auto &crd_from = figure->getCurrentCoordinate();
 
-    if (place_to == board::PlaceType::empty)
-    {
-        auto &place_from = getTypePlace(figure->getCurrentCoordinate());
-        auto fig_type = figure->type();
-        if (place_from == fig_type)
-        {
-            figure->setCurrentCoordinate(to);
-            place_to = utils::to_enum<board::PlaceType>(fig_type);
-            place_from = board::PlaceType::empty;
-            error_code = board::ErrorCode::success;
+    if (crd_from != to) {
+        if (place_to == board::PlaceType::empty) {
+            auto &place_from = getTypePlace(crd_from);
+            auto fig_type = figure->type();
+            if (place_from == fig_type) {
+                figure->setCurrentCoordinate(to);
+                place_to = utils::to_enum<board::PlaceType>(fig_type);
+                place_from = board::PlaceType::empty;
+                error_code = board::ErrorCode::success;
+            }
+        } else {
+            error_code = board::ErrorCode::occupied_place;
         }
-    } else {
-        error_code = board::ErrorCode::occupied_place;
     }
 
     return error_code;
 }
 
-board::ErrorCode ChessBoardImpl::placeFigure(const std::shared_ptr<chessman::IChessman> &figure, const Coordinate &to)
+board::ErrorCode ChessBoardImpl::placeFigure(const std::shared_ptr<chessman::IChessMan> &figure, const Coordinate &to)
 {
     auto error_code = board::ErrorCode::occupied_place;
     auto lock = std::unique_lock(mMutex);
@@ -51,7 +52,7 @@ board::ErrorCode ChessBoardImpl::placeFigure(const std::shared_ptr<chessman::ICh
     return error_code;
 }
 
-board::ErrorCode ChessBoardImpl::removeFigure(const std::shared_ptr<chessman::IChessman> &figure)
+board::ErrorCode ChessBoardImpl::removeFigure(const std::shared_ptr<chessman::IChessMan> &figure)
 {
     auto error_code = board::ErrorCode::success;
     auto lock = std::unique_lock(mMutex);

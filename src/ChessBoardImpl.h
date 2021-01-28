@@ -10,9 +10,9 @@ public:
     ChessBoardImpl();
     ~ChessBoardImpl() override = default;
 
-    board::ErrorCode moveFigure(const std::shared_ptr<chessman::IChessman> &figure, const Coordinate &to) override;
-    board::ErrorCode placeFigure(const std::shared_ptr<chessman::IChessman> &figure, const Coordinate &to) override;
-    board::ErrorCode removeFigure(const std::shared_ptr<chessman::IChessman> &figure) override;
+    board::ErrorCode moveFigure(const std::shared_ptr<chessman::IChessMan> &figure, const Coordinate &to) override;
+    board::ErrorCode placeFigure(const std::shared_ptr<chessman::IChessMan> &figure, const Coordinate &to) override;
+    board::ErrorCode removeFigure(const std::shared_ptr<chessman::IChessMan> &figure) override;
 
     uint8_t sizeBoard() const noexcept override;
 

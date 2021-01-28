@@ -6,7 +6,7 @@
 #include "Coordinate.h"
 
 namespace chessman {
-    class IChessman;
+    class IChessMan;
 }
 
 namespace board {
@@ -26,9 +26,9 @@ class IChessBoard : public RemoveCopyMove {
 public:
     ~IChessBoard() override = default;
 
-    virtual ErrorCode moveFigure(const std::shared_ptr<chessman::IChessman> &figure, const Coordinate &to) = 0;
-    virtual ErrorCode placeFigure(const std::shared_ptr<chessman::IChessman> &figure, const Coordinate &to) = 0;
-    virtual ErrorCode removeFigure(const std::shared_ptr<chessman::IChessman> &figure) = 0;
+    virtual ErrorCode moveFigure(const std::shared_ptr<chessman::IChessMan> &figure, const Coordinate &to) = 0;
+    virtual ErrorCode placeFigure(const std::shared_ptr<chessman::IChessMan> &figure, const Coordinate &to) = 0;
+    virtual ErrorCode removeFigure(const std::shared_ptr<chessman::IChessMan> &figure) = 0;
     virtual std::uint8_t sizeBoard() const noexcept = 0;
 };
 

@@ -4,7 +4,9 @@ find_package(Threads REQUIRED)
 
 file(GLOB TEST_SOURCES
         ./*.cpp
-        ../src/ChessBoardImpl.cpp)
+        ../src/ChessBoardImpl.cpp
+        ../src/ChessRookImpl.cpp
+        ../src/GameRulesImpl.cpp)
 
 include_directories(
         ../include
