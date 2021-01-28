@@ -6,7 +6,6 @@ project(ChessRook
 find_package(Threads REQUIRED)
 
 find_package(GTest)
-#find_package(GMock)
 if (GTEST_FOUND)
     enable_testing()
     add_subdirectory(test)
@@ -18,6 +17,9 @@ set(SOURCES
         src/ChessRookImpl.cpp
         src/GameRulesImpl.cpp
         src/ParticipantGame.cpp
+        src/state/DoStepState.cpp
+        src/state/WaitNextStepState.cpp
+        src/state/WaitBlockStep.cpp
 )
 
 add_definitions(-DSIZE_BOARD=8)

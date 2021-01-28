@@ -6,7 +6,12 @@ file(GLOB TEST_SOURCES
         ./*.cpp
         ../src/ChessBoardImpl.cpp
         ../src/ChessRookImpl.cpp
-        ../src/GameRulesImpl.cpp)
+        ../src/GameRulesImpl.cpp
+        ../src/ParticipantGame.cpp
+        ../src/state/DoStepState.cpp
+        ../src/state/WaitNextStepState.cpp
+        ../src/state/WaitBlockStep.h
+)
 
 include_directories(
         ../include

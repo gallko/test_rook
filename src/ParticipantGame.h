@@ -4,24 +4,42 @@
 #include <memory>
 #include <string>
 #include <mutex>
+#include <condition_variable>
+
 
 class IState;
+class IGameRules;
+namespace board {
+    class IChessBoard;
+}
 
-class ParticipantGame {
+class ParticipantGame
+{
 public:
-    ParticipantGame();
+    ParticipantGame(std::shared_ptr<board::IChessBoard> board, std::shared_ptr<IGameRules> gameRules);
+    ~ParticipantGame();
+
     void start(pthread_barrier_t *barrier);
     void stop();
-
-    void changeState(std::shared_ptr<IState> newState);
+    void notifyPlaceVacated();
 
 private:
-    void main_loop();
+    enum class ReasonWeakUp;
+    void main_loop(pthread_barrier_t *barrier);
+    void changeState(std::shared_ptr<IState> newState);
 
-    pthread_barrier_t *mBarrierStart;
     std::unique_ptr<std::thread> mTread;
     const std::string mName;
 
     std::shared_ptr<IState> mState;
+
+    std::mutex mMutex;
+    std::condition_variable mWait;
+    ReasonWeakUp mReasonWeakUp;
+};
+
+enum class ParticipantGame::ReasonWeakUp
+{ // in order of importance
+    stop, next_step, fake
 };
 
