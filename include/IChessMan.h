@@ -17,8 +17,8 @@ class IChessMan {
 public:
     virtual ~IChessMan() = default;
 
+    virtual std::int32_t id() const = 0;
     virtual ChessmanType type() const = 0;
-    virtual const std::string &name() const = 0;
     virtual const Coordinate &getCurrentCoordinate() const = 0;
     virtual void setCurrentCoordinate(const Coordinate &coordinate) = 0;
 };

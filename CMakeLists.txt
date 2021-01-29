@@ -13,6 +13,7 @@ endif ()
 
 set(SOURCES
         src/main.cpp
+        src/TreadBase.cpp
         src/ChessBoardImpl.cpp
         src/ChessRookImpl.cpp
         src/GameRulesImpl.cpp

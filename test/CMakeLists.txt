@@ -3,14 +3,15 @@ project(TestChessRook)
 find_package(Threads REQUIRED)
 
 file(GLOB TEST_SOURCES
-        ./*.cpp
+        ./testBoard.cpp
+        ../src/TreadBase.cpp
         ../src/ChessBoardImpl.cpp
-        ../src/ChessRookImpl.cpp
-        ../src/GameRulesImpl.cpp
-        ../src/ParticipantGame.cpp
-        ../src/state/DoStepState.cpp
-        ../src/state/WaitNextStepState.cpp
-        ../src/state/WaitBlockStep.h
+#        ../src/ChessRookImpl.cpp
+#        ../src/GameRulesImpl.cpp
+#        ../src/ParticipantGame.cpp
+#        ../src/state/DoStepState.cpp
+#        ../src/state/WaitNextStepState.cpp
+#        ../src/state/WaitBlockStep.h
 )
 
 include_directories(

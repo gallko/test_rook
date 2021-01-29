@@ -11,25 +11,26 @@ namespace chessman {
 
 namespace board {
 
-enum class ErrorCode : std::uint8_t {
-    error, success, occupied_place
-};
-
-enum class PlaceType : std::uint8_t {
-    empty, occupied_by_rook /*, occupied_by_* */
-#ifdef TEST_BUILD
-    , test
-#endif
+class INotifier: public RemoveCopyMove
+{
+public:
+    ~INotifier() override = default;
+    virtual void moved(std::int32_t id, const Coordinate &to) = 0;
+    virtual void placed(std::int32_t id, const Coordinate &to) = 0;
+    virtual void removed(std::int32_t id, const Coordinate &from) = 0;
+    virtual void waitingForCell(std::int32_t id, const Coordinate &to) = 0;
+    virtual void reject(std::int32_t id) = 0;
 };
 
 class IChessBoard : public RemoveCopyMove {
 public:
     ~IChessBoard() override = default;
 
-    virtual ErrorCode moveFigure(const std::shared_ptr<chessman::IChessMan> &figure, const Coordinate &to) = 0;
-    virtual ErrorCode placeFigure(const std::shared_ptr<chessman::IChessMan> &figure, const Coordinate &to) = 0;
-    virtual ErrorCode removeFigure(const std::shared_ptr<chessman::IChessMan> &figure) = 0;
+    virtual bool moveFigure(const chessman::IChessMan &figure, const Coordinate &to, std::shared_ptr<INotifier> notifier) = 0;
+    virtual bool placeFigure(const chessman::IChessMan &figure, const Coordinate &to, std::shared_ptr<INotifier> notifier) = 0;
+    virtual bool removeFigure(const chessman::IChessMan &figure, std::shared_ptr<INotifier> notifier) = 0;
     virtual std::uint8_t sizeBoard() const noexcept = 0;
 };
+
 
 } // board
