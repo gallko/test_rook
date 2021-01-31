@@ -1,77 +1,97 @@
 #include "ParticipantGame.h"
-#include "IState.h"
-#include "IChessBoard.h"
-#include "IGameRules.h"
+#include "GameRules.h"
 
-ParticipantGame::ParticipantGame(std::shared_ptr<board::IChessBoard> board, std::shared_ptr<IGameRules> gameRules)
+
+ParticipantGame::ParticipantGame(std::shared_ptr<board::IChessBoard> board, pthread_barrier_t *barrier)
+        : TreadBase("ParticipantGame")
+        , mBarrier(barrier)
+        , mBoard(std::move(board))
+        , mChessMan(nullptr)
+        , mMutex()
+        , mWait()
+        , mReasonWeakUp(ParticipantGame::ReasonWeakUp::next_step)
 {
 
 }
 
 ParticipantGame::~ParticipantGame()
 {
-    mTread->join();
+    join();
 }
 
-void ParticipantGame::start(pthread_barrier_t *barrier)
+/* ************************************************************
+ * IMPL IGameElement
+ * ************************************************************/
+void ParticipantGame::startGame()
 {
-    if (!mTread) {
-        mTread = std::make_unique<std::thread>(&ParticipantGame::main_loop, this, barrier);
-        pthread_setname_np(mTread->native_handle(), mName.c_str());
-    }
+    TreadBase::start();
+    mChessMan = GameRules::makeChessMan(chessman::ChessmanType::rook);
+    mBoard->addNotifier(shared_from_this());
 }
 
-void ParticipantGame::stop()
+void ParticipantGame::stopGame()
 {
-    changeState(nullptr);
+    mBoard->removeNotifier(shared_from_this());
     std::lock_guard lock(mMutex);
-    mReasonWeakUp = ReasonWeakUp::stop;
+    mReasonWeakUp = ParticipantGame::ReasonWeakUp::stop;
     mWait.notify_all();
 }
 
-void ParticipantGame::notifyPlaceVacated()
+/* ************************************************************
+ * IMPL TreadBase
+ * ************************************************************/
+void ParticipantGame::onStart()
 {
-    std::lock_guard lock(mMutex);
-    if (mReasonWeakUp != ReasonWeakUp::stop)
+    if (mBarrier)
     {
-        mReasonWeakUp = ReasonWeakUp::next_step;
+        pthread_barrier_wait(mBarrier);
     }
-    mWait.notify_all();
+    mBoard->placeFigure(*mChessMan, GameRules::generateStep(*mChessMan));
 }
 
-void ParticipantGame::main_loop(pthread_barrier_t *barrier)
+void ParticipantGame::loop()
 {
-    if (barrier)
-    {
-        pthread_barrier_wait(barrier);
-    }
 
-    while (mState) {
-        auto localState = std::atomic_load(&mState);
-        if (localState)
-        {
-            changeState(localState->doWork());
-        }
-    }
 }
 
-void ParticipantGame::changeState(std::shared_ptr<IState> newState)
+void ParticipantGame::onStop()
 {
-    if (mState) {
-        if (newState)
-        {
-            std::atomic_store(&mState, std::move(newState));
-        } else {
-            // we must be sure on leave the function the mState variable is nullptr
-            while (!std::atomic_compare_exchange_weak_explicit(
-                    &mState,
-                    &newState,
-                    newState,
-                    std::memory_order_release,
-                    std::memory_order_relaxed))
-            {
-                /* empty */
-            }
-        }
-    }
+
 }
+
+/* ************************************************************
+ * IMPL board::INotifier
+ * ************************************************************/
+void ParticipantGame::placed(std::uint32_t id, const Coordinate &to) noexcept
+{
+
+}
+
+void ParticipantGame::moved(std::uint32_t id, const Coordinate &from, const Coordinate &to) noexcept
+{
+
+}
+
+void ParticipantGame::cancelMoved(std::uint32_t id, const Coordinate &from, const Coordinate &to) noexcept
+{
+
+}
+
+void ParticipantGame::removed(std::uint32_t id, const Coordinate &from) noexcept
+{
+
+}
+
+void ParticipantGame::waitingForCell(std::uint32_t id, const Coordinate &from, const Coordinate &to) noexcept
+{
+
+}
+
+void ParticipantGame::reject(std::uint32_t id, board::ReasonReject reason) noexcept
+{
+
+}
+
+/* ************************************************************
+ * IMPL private
+ * ************************************************************/

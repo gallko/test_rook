@@ -29,9 +29,7 @@ void TreadBase::mainLoop()
     onStop();
 }
 
-TreadBase::~TreadBase()
+void TreadBase::join()
 {
     mTread->join();
 }
-
-

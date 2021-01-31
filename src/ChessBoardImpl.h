@@ -2,96 +2,101 @@
 
 #include <array>
 #include <mutex>
-#include <list>
 #include <condition_variable>
 #include <utility>
 #include <future>
+#include <set>
+#include <vector>
+#include <list>
 
+#include "IGameElement.h"
 #include "IChessBoard.h"
 #include "TreadBase.h"
 
 class IState;
 
-class ChessBoardImpl : public board::IChessBoard, public TreadBase, std::enable_shared_from_this<ChessBoardImpl> {
+class ChessBoardImpl
+        : public board::IChessBoard
+        , public IGameElement
+        , public TreadBase
+{
 public:
-    ChessBoardImpl();
+    explicit ChessBoardImpl(std::uint8_t sizeBoard);
     ~ChessBoardImpl() override;
 
-    bool moveFigure(const chessman::IChessMan &figure, const Coordinate &to,
-                    std::shared_ptr<board::INotifier> notifier) override;
-    bool placeFigure(const chessman::IChessMan &figure, const Coordinate &to,
-                     std::shared_ptr<board::INotifier> notifier) override;
-    bool removeFigure(const chessman::IChessMan &figure, std::shared_ptr<board::INotifier> notifier) override;
+    void startGame() override;
+    void stopGame() override;
+
+    void addNotifier(std::shared_ptr<board::INotifier> notifier) override;
+    void removeNotifier(std::shared_ptr<board::INotifier> notifier) override;
+
+    void moveFigure(const chessman::IChessMan &figure, const Coordinate &to) override;
+    void placeFigure(const chessman::IChessMan &figure, const Coordinate &to) override;
+    void removeFigure(const chessman::IChessMan &figure) override;
+    void cancelMoveFigure(const chessman::IChessMan &figure, const Coordinate &to) override;
 
     uint8_t sizeBoard() const noexcept override;
 
-    void start(pthread_barrier_t *barrier);
-    void stop();
-
 protected:
-    void onStart() override;
     void loop() override;
     void onStop() override;
 
 private:
-    static constexpr std::int32_t sEmptyCell = 0 ;
-    using Waiting_t = std::pair<std::int32_t, std::weak_ptr<board::INotifier>>;
-    using Cell_t = std::pair<std::int32_t, std::list<Waiting_t>>;
-    using Board_t = std::array<std::array<Cell_t, SIZE_BOARD>, SIZE_BOARD>;
+    using Waiting_t = std::pair<std::uint32_t /* id */, Coordinate /* from */>;
+    using Cell_t = std::pair<std::uint32_t /* sEmptyCell/id */, std::list<Waiting_t>>;
+    using Row_t = std::vector<Cell_t>;
+    using Board_t = std::vector<Row_t>;
     struct Task;
     enum class ReasonWeakUp;
 
     Board_t::value_type::const_reference getCell(const Coordinate &coordinate) const;
     Board_t::value_type::reference getCell(const Coordinate &coordinate);
-    void do_task(std::unique_lock<std::mutex> &lock, const Task &task); // call protected by mMutex
-    void do_place(std::unique_lock<std::mutex> &lock, std::int32_t id,
-                  const Coordinate &to_coordinate, const std::shared_ptr<board::INotifier> &notifier); // call protected by mMutex
+    void do_task(const Task &task);
+    void do_place(std::uint32_t id, const Coordinate &to_coordinate);
+    void do_move(std::uint32_t id, const Coordinate &from_coordinate, const Coordinate &to_coordinate);
+    void do_cancel_move(std::uint32_t id, const Coordinate &from_coordinate, const Coordinate &to_coordinate);
+    void do_remove(std::uint32_t id, const Coordinate &from_coordinate);
+    void do_check_waiting(const Coordinate &current_coordinate);
 
-    void do_move(std::unique_lock<std::mutex> &lock, std::int32_t id,
-                 const Coordinate &from_coordinate, const Coordinate &to_coordinate,
-                 const std::shared_ptr<board::INotifier> &notifier); // call protected by mMutex
+    template<typename Func, typename... Args>
+    void notifyAll(Func &&func, Args&&... args) const;
 
-    void do_remove(std::unique_lock<std::mutex> &lock, std::int32_t id,
-                   const Coordinate &from_coordinate,
-                   const std::shared_ptr<board::INotifier> &notifier); // call protected by mMutex
-    void do_check_waiting(std::unique_lock<std::mutex> &lock, const Coordinate &current_coordinate); // call protected by mMutex
-
-    pthread_barrier_t *mBarrierStart;
-    std::mutex mMutex;
+    std::mutex mMutexTasks;
     std::condition_variable mWait;
     ReasonWeakUp mReasonWeakUp;
     std::list<Task> mTaskList;
 
+    mutable std::mutex mMutexNotifier;
+    std::vector<std::shared_ptr<board::INotifier>> mListNotifiers;
+
     Board_t mBoard;
+    std::set<std::uint32_t> mIds;
 };
 
 struct ChessBoardImpl::Task {
     enum class Type {
-        place, move, remove
+        place, move, cancelMove, remove
     };
     Task(Type type,
-         std::int32_t id,
-         const Coordinate &from,
-         const Coordinate &to,
-         const std::shared_ptr<board::INotifier> &notifier)
+         std::uint32_t id,
+         Coordinate from,
+         Coordinate to)
          : mId(id)
          , mTypeTask(type)
-         , mFromCoordinate(from)
-         , mToCoordinate(to)
-         , mNotifier(notifier)
+         , mFromCoordinate(std::move(from))
+         , mToCoordinate(std::move(to))
     {
 
     }
-    std::int32_t mId;
+    std::uint32_t mId;
     Type mTypeTask;
     const Coordinate mFromCoordinate;
     const Coordinate mToCoordinate;
-    std::weak_ptr<board::INotifier> mNotifier;
 };
 
 enum class ChessBoardImpl::ReasonWeakUp
 { // in order of importance
-    stop, do_work, fake
+    exit, stop, do_work, fake,
 };
 
 inline ChessBoardImpl::Board_t::value_type::reference ChessBoardImpl::getCell(const Coordinate &coordinate)

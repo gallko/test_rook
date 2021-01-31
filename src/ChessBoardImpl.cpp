@@ -1,86 +1,117 @@
+#include <iostream>
+#include <algorithm>
+#include <functional>
 #include "ChessBoardImpl.h"
 #include "Coordinate.h"
 #include "IChessMan.h"
-#include "utils.h"
+#include "GameRules.h"
 
-
-ChessBoardImpl::ChessBoardImpl()
+ChessBoardImpl::ChessBoardImpl(std::uint8_t sizeBoard)
     : IChessBoard()
     , TreadBase("ChessBoardImpl")
-    , mBarrierStart(nullptr)
-    , mMutex()
+    , mMutexTasks()
     , mWait()
     , mReasonWeakUp(ReasonWeakUp::do_work)
     , mTaskList()
-    , mBoard()
+    , mMutexNotifier()
+    , mListNotifiers()
+    , mBoard(sizeBoard, Row_t(sizeBoard, {sEmptyCell, {}}))
+    , mIds()
 {
 
 }
 
 ChessBoardImpl::~ChessBoardImpl()
 {
-    stop();
-}
-
-bool ChessBoardImpl::placeFigure(const chessman::IChessMan &figure,
-                                 const Coordinate &to,
-                                 std::shared_ptr<board::INotifier> notifier)
-{
-    std::lock_guard lock(mMutex);
-    if (mReasonWeakUp == ReasonWeakUp::stop) {
-        return false;
-    }
-    mTaskList.emplace_back(Task::Type::place, figure.id(), figure.getCurrentCoordinate(), to, notifier);
-    mReasonWeakUp = ReasonWeakUp::do_work;
-    mWait.notify_all();
-    return true;
-}
-
-bool ChessBoardImpl::moveFigure(const chessman::IChessMan &figure,
-                                const Coordinate &to,
-                                std::shared_ptr<board::INotifier> notifier)
-{
-    std::lock_guard lock(mMutex);
-    if (mReasonWeakUp == ReasonWeakUp::stop) {
-        return false;
-    }
-    mTaskList.emplace_back(Task::Type::move, figure.id(), figure.getCurrentCoordinate(), to, notifier);
-    mReasonWeakUp = ReasonWeakUp::do_work;
-    mWait.notify_all();
-    return true;
-}
-
-bool ChessBoardImpl::removeFigure(const chessman::IChessMan &figure,
-                                  std::shared_ptr<board::INotifier> notifier)
-{
-    std::lock_guard lock(mMutex);
-    if (mReasonWeakUp == ReasonWeakUp::stop) {
-        return false;
-    }
-    mTaskList.emplace_back(Task::Type::remove, figure.id(), figure.getCurrentCoordinate(), Coordinate(), notifier);
-    mReasonWeakUp = ReasonWeakUp::do_work;
-    mWait.notify_all();
-    return true;
-}
-
-void ChessBoardImpl::onStart()
-{
-    TreadBase::onStart();
-    if (mBarrierStart)
     {
-        pthread_barrier_wait(mBarrierStart);
+        std::unique_lock lock(mMutexTasks);
+        mReasonWeakUp = ReasonWeakUp::exit;
+        mWait.notify_all();
     }
+    join();
 }
 
+/* ************************************************************
+ * IMPL IGameElement
+ * ************************************************************/
+void ChessBoardImpl::startGame()
+{
+    TreadBase::start();
+}
+
+void ChessBoardImpl::stopGame()
+{
+    std::unique_lock lock(mMutexTasks);
+    mReasonWeakUp = ReasonWeakUp::stop;
+    mWait.notify_all();
+}
+
+/* ************************************************************
+ * IMPL board::IChessBoard
+ * ************************************************************/
+void ChessBoardImpl::addNotifier(std::shared_ptr<board::INotifier> notifier)
+{
+    std::lock_guard lock(mMutexNotifier);
+    mListNotifiers.emplace_back(std::move(notifier));
+}
+
+void ChessBoardImpl::removeNotifier(std::shared_ptr<board::INotifier> notifier)
+{
+    std::lock_guard lock(mMutexNotifier);
+    auto it = std::remove(mListNotifiers.begin(), mListNotifiers.end(), notifier);
+    mListNotifiers.erase(it, mListNotifiers.end());
+}
+
+void ChessBoardImpl::placeFigure(const chessman::IChessMan &figure, const Coordinate &to)
+{
+    std::lock_guard lock(mMutexTasks);
+    mTaskList.emplace_back(Task::Type::place, figure.getID(), Coordinate(), to);
+    mReasonWeakUp = ReasonWeakUp::do_work;
+    mWait.notify_all();
+}
+
+void ChessBoardImpl::moveFigure(const chessman::IChessMan &figure,
+                                const Coordinate &to)
+{
+    auto &from_coordinate = figure.getCurrentCoordinate();
+    std::lock_guard lock(mMutexTasks);
+    mTaskList.emplace_back(Task::Type::move, figure.getID(), from_coordinate, to);
+    mReasonWeakUp = ReasonWeakUp::do_work;
+    mWait.notify_all();
+}
+
+void ChessBoardImpl::removeFigure(const chessman::IChessMan &figure)
+{
+    std::lock_guard lock(mMutexTasks);
+    mTaskList.emplace_back(Task::Type::remove, figure.getID(), figure.getCurrentCoordinate(), Coordinate());
+    mReasonWeakUp = ReasonWeakUp::do_work;
+    mWait.notify_all();
+}
+
+void ChessBoardImpl::cancelMoveFigure(const chessman::IChessMan &figure, const Coordinate &to)
+{
+    auto &from_coordinate = figure.getCurrentCoordinate();
+    std::lock_guard lock(mMutexTasks);
+    mTaskList.emplace_back(Task::Type::cancelMove, figure.getID(), from_coordinate, to);
+    mReasonWeakUp = ReasonWeakUp::do_work;
+    mWait.notify_all();
+}
+
+/* ************************************************************
+ * IMPL TreadBase
+ * ************************************************************/
 void ChessBoardImpl::loop()
 {
-    std::unique_lock lock(mMutex);
-    while (mReasonWeakUp != ReasonWeakUp::stop)
+    std::unique_lock lock(mMutexTasks);
+    while (mReasonWeakUp != ReasonWeakUp::stop && mReasonWeakUp != ReasonWeakUp::exit)
     {
         while (!mTaskList.empty())
         {
-            do_task(lock, mTaskList.front());
+            auto task = std::move(mTaskList.front());
             mTaskList.pop_front();
+            lock.unlock();
+            do_task(task);
+            lock.lock();
         }
         mReasonWeakUp = ReasonWeakUp::fake;
         mWait.wait(lock, [this]() {
@@ -91,158 +122,186 @@ void ChessBoardImpl::loop()
 
 void ChessBoardImpl::onStop()
 {
-    std::unique_lock lock(mMutex);
+    auto notify = [this](std::uint32_t id) {
+        notifyAll(&board::INotifier::reject, id, board::ReasonReject::boardStopped);
+    };
+    std::for_each(mIds.begin(), mIds.end(), notify);
 
-    auto clear = [&lock](auto id, auto notifier) {
-        if (notifier)
+    std::unique_lock lock(mMutexTasks);
+    mTaskList.clear();
+    while (mReasonWeakUp != ReasonWeakUp::exit)
+    {
+        while (!mTaskList.empty())
         {
+            auto &task = mTaskList.front();
+            mTaskList.pop_front();
             lock.unlock();
-            notifier->reject(id);
+            notify(task.mId);
             lock.lock();
         }
-    };
-
-    while (!mTaskList.empty())
-    {
-        auto &w = mTaskList.front();
-        clear(w.mId, w.mNotifier.lock());
-        mTaskList.pop_front();
+        mReasonWeakUp = ReasonWeakUp::fake;
+        mWait.wait(lock, [this]() {
+            return mReasonWeakUp != ReasonWeakUp::fake;
+        });
     }
     mTaskList.clear();
-
-    for (auto &line: mBoard)
-        for (auto &cell: line)
-            for (auto &w: cell.second)
-                clear(w.first, w.second.lock());
-
     TreadBase::onStop();
 }
 
-
 uint8_t ChessBoardImpl::sizeBoard() const noexcept
 {
-    return SIZE_BOARD;
+    return GameRules::sizeBoard();
 }
 
-void ChessBoardImpl::start(pthread_barrier_t *barrier)
-{
-    mBarrierStart = barrier;
-    TreadBase::start();
-}
 
-void ChessBoardImpl::stop()
+/* ************************************************************
+ * private
+ * ************************************************************/
+void ChessBoardImpl::do_task(const ChessBoardImpl::Task &task)
 {
-    std::unique_lock lock(mMutex);
-    mReasonWeakUp = ReasonWeakUp::stop;
-    mWait.notify_all();
-}
-
-void ChessBoardImpl::do_task(std::unique_lock<std::mutex> &lock, const ChessBoardImpl::Task &task)
-{
-    auto notifier = task.mNotifier.lock();
-    if (!notifier)
+    if (task.mId != sEmptyCell)
     {
-        return;
-    }
-
-    switch (task.mTypeTask) {
-        case Task::Type::place:
-            do_place(lock, task.mId, task.mToCoordinate, notifier);
-            break;
-        case Task::Type::move:
-            do_move(lock, task.mId, task.mFromCoordinate, task.mToCoordinate, notifier);
-            break;
-        case Task::Type::remove:
-            do_remove(lock, task.mId, task.mFromCoordinate, notifier);
-            break;
-    }
-}
-
-void ChessBoardImpl::do_place(std::unique_lock<std::mutex> &lock, std::int32_t id,
-                              const Coordinate &to_coordinate, const std::shared_ptr<board::INotifier> &notifier)
-{
-    auto &to_cell = getCell(to_coordinate);
-    if (to_cell.first == sEmptyCell)
-    {
-        to_cell.first = id;
-        lock.unlock();
-        notifier->placed(id, to_coordinate);
-        lock.lock();
+        switch (task.mTypeTask) {
+            case Task::Type::place:
+                do_place(task.mId, task.mToCoordinate);
+                break;
+            case Task::Type::move:
+                do_move(task.mId, task.mFromCoordinate, task.mToCoordinate);
+                break;
+            case Task::Type::remove:
+                do_remove(task.mId, task.mFromCoordinate);
+                break;
+            case Task::Type::cancelMove:
+                do_cancel_move(task.mId, task.mFromCoordinate, task.mToCoordinate);
+                break;
+        }
     } else {
-        to_cell.second.emplace_back(id, notifier);
-        lock.unlock();
-        notifier->waitingForCell(id, to_coordinate);
-        lock.lock();
+        notifyAll(&board::INotifier::reject, task.mId, board::ReasonReject::incorrectId);
     }
 }
 
-void ChessBoardImpl::do_move(std::unique_lock<std::mutex> &lock, std::int32_t id,
-                             const Coordinate &from_coordinate, const Coordinate &to_coordinate,
-                             const std::shared_ptr<board::INotifier> &notifier)
+void ChessBoardImpl::do_place(std::uint32_t id, const Coordinate &to_coordinate)
 {
-    auto &from_cell = getCell(from_coordinate);
-    auto &to_cell = getCell(to_coordinate);
+    using namespace board;
 
-    if (from_cell.first != id)
+    if (mIds.find(id) == mIds.end())
     {
-        lock.unlock();
-        notifier->reject(id);
-        lock.lock();
-        return;
-    }
-
-    if (to_cell.first == sEmptyCell)
-    {
-        from_cell.first = sEmptyCell;
-        to_cell.first = id;
-        lock.unlock();
-        notifier->moved(id, to_coordinate);
-        lock.lock();
-        do_check_waiting(lock, from_coordinate);
+        try {
+            auto &to_cell = getCell(to_coordinate);
+            if (to_cell.first == sEmptyCell) {
+                to_cell.first = id;
+                mIds.insert(id);
+                notifyAll(&INotifier::placed, id, to_coordinate);
+            } else {
+                mIds.insert(id);
+                to_cell.second.emplace_back(id, invalidCoordinate);
+                notifyAll(&INotifier::waitingForCell, id, invalidCoordinate, to_coordinate);
+            }
+        } catch (std::out_of_range &) {
+            notifyAll(&INotifier::reject, id, board::ReasonReject::incorrectCoordinate);
+        }
     } else {
-        to_cell.second.emplace_back(id, notifier);
-        lock.unlock();
-        notifier->waitingForCell(id, to_coordinate);
-        lock.lock();
+        notifyAll(&INotifier::reject, id, board::ReasonReject::duplicateId);
     }
 }
 
-void ChessBoardImpl::do_remove(std::unique_lock<std::mutex> &lock, std::int32_t id,
-                               const Coordinate &from_coordinate,
-                               const std::shared_ptr<board::INotifier> &notifier)
+void ChessBoardImpl::do_move(std::uint32_t id, const Coordinate &from_coordinate, const Coordinate &to_coordinate)
 {
-    auto &from_cell = getCell(from_coordinate);
-    if (from_cell.first == id)
-    {
-        from_cell.first = sEmptyCell;
-        lock.unlock();
-        notifier->removed(id, from_coordinate);
-        lock.lock();
-        do_check_waiting(lock, from_coordinate);
-    } else {
-        lock.unlock();
-        notifier->reject(id);
-        lock.lock();
+    using namespace board;
+
+    try {
+        auto &from_cell = getCell(from_coordinate);
+        auto &to_cell = getCell(to_coordinate);
+        if (from_cell.first == id) {
+            if (to_cell.first == sEmptyCell) {
+                from_cell.first = sEmptyCell;
+                to_cell.first = id;
+                notifyAll(&INotifier::moved, id, from_coordinate, to_coordinate);
+                do_check_waiting(from_coordinate);
+            } else {
+                to_cell.second.emplace_back(id, from_coordinate);
+                notifyAll(&INotifier::waitingForCell, id, from_coordinate, to_coordinate);
+            }
+        } else {
+            notifyAll(&INotifier::reject, id, board::ReasonReject::idMismatch);
+        }
+    } catch (std::out_of_range &)  {
+        notifyAll(&INotifier::reject, id, board::ReasonReject::incorrectCoordinate);
     }
 }
 
-void ChessBoardImpl::do_check_waiting(std::unique_lock<std::mutex> &lock, const Coordinate &current_coordinate)
+void ChessBoardImpl::do_cancel_move(std::uint32_t id, const Coordinate &from_coordinate, const Coordinate &to_coordinate)
 {
-    auto &current_cell = getCell(current_coordinate);
-    auto &waiting_list = getCell(current_coordinate).second;
+    using namespace board;
+    try {
+        auto &from_cell = getCell(from_coordinate);
+        auto &to_cell = getCell(to_coordinate);
+        if (from_cell.first == id) {
+            auto &wait_list = to_cell.second;
+            auto it = std::find_if(wait_list.begin(), wait_list.end(), [&](auto &item) {
+                return item.first == id && item.second == from_coordinate;
+            });
+            if (it != wait_list.end())
+            {
+                wait_list.erase(it);
+                notifyAll(&INotifier::cancelMoved, id, from_coordinate, to_coordinate);
+            } else {
+                notifyAll(&INotifier::reject, id, board::ReasonReject::waiterNotFound);
+            }
+        } else {
+            notifyAll(&INotifier::reject, id, board::ReasonReject::idMismatch);
+        }
+    } catch (std::out_of_range &)  {
+        notifyAll(&INotifier::reject, id, board::ReasonReject::incorrectCoordinate);
+    }
+}
+
+void ChessBoardImpl::do_remove(std::uint32_t id, const Coordinate &from_coordinate)
+{
+    using namespace board;
+
+    try {
+        auto &from_cell = getCell(from_coordinate);
+        if (from_cell.first == id) {
+            from_cell.first = sEmptyCell;
+            mIds.erase(id);
+            notifyAll(&INotifier::removed, id, from_coordinate);
+            do_check_waiting(from_coordinate);
+        } else {
+            notifyAll(&INotifier::reject, id, board::ReasonReject::idMismatch);
+        }
+    } catch (std::out_of_range &) {
+        notifyAll(&INotifier::reject, id, board::ReasonReject::incorrectCoordinate);
+    }
+}
+
+void ChessBoardImpl::do_check_waiting(const Coordinate &current_coordinate)
+{
+    auto &to_cell = getCell(current_coordinate);
+    auto &waiting_list = to_cell.second;
 
     bool flag = true;
     while (!waiting_list.empty() && flag)
     {
         auto &w = waiting_list.front();
-        if (auto notifier = w.second.lock(); notifier)
+        if (mIds.find(w.first) != mIds.end())
         {
-            current_cell.first = w.first;
-            lock.unlock();
-            notifier->moved(w.first, current_coordinate);
-            lock.lock();
             flag = false;
+            std::lock_guard lock(mMutexTasks);
+            mTaskList.emplace_front(Task::Type::move, w.first,  w.second, current_coordinate);
         }
         waiting_list.pop_front();
+    }
+}
+
+template<typename Func, typename... Args>
+void ChessBoardImpl::notifyAll(Func &&func, Args&&... args) const
+{
+    std::unique_lock lock(mMutexNotifier);
+    auto copy = mListNotifiers;
+    lock.unlock();
+
+    for (auto &notifier: copy) {
+        std::invoke(std::forward<Func>(func), *notifier, std::forward<Args>(args)...);
     }
 }

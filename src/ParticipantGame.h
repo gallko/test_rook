@@ -1,41 +1,50 @@
 #pragma once
 
-#include <thread>
 #include <memory>
-#include <string>
 #include <mutex>
 #include <condition_variable>
 
+#include "IGameElement.h"
+#include "TreadBase.h"
+#include "IChessBoard.h"
 
-class IState;
-class IGameRules;
-namespace board {
-    class IChessBoard;
-}
 
 class ParticipantGame
+        : public IGameElement
+        , public TreadBase
+        , public board::INotifier
+        , public std::enable_shared_from_this<ParticipantGame>
 {
 public:
-    ParticipantGame(std::shared_ptr<board::IChessBoard> board, std::shared_ptr<IGameRules> gameRules);
-    ~ParticipantGame();
+    ParticipantGame(std::shared_ptr<board::IChessBoard> board, pthread_barrier_t *barrier);
+    ~ParticipantGame() override;
 
-    void start(pthread_barrier_t *barrier);
-    void stop();
-    void notifyPlaceVacated();
+    void startGame() override;
+    void stopGame() override;
+
+protected:
+    void placed(std::uint32_t id, const Coordinate &to) noexcept override;
+    void moved(std::uint32_t id, const Coordinate &from, const Coordinate &to) noexcept override;
+    void cancelMoved(std::uint32_t id, const Coordinate &from, const Coordinate &to) noexcept override;
+    void removed(std::uint32_t id, const Coordinate &from) noexcept override;
+    void waitingForCell(std::uint32_t id, const Coordinate &from, const Coordinate &to) noexcept override;
+    void reject(std::uint32_t id, board::ReasonReject reason) noexcept override;
+
+    void onStart() override;
+    void loop() override;
+    void onStop() override;
 
 private:
     enum class ReasonWeakUp;
-    void main_loop(pthread_barrier_t *barrier);
-    void changeState(std::shared_ptr<IState> newState);
 
-    std::unique_ptr<std::thread> mTread;
-    const std::string mName;
-
-    std::shared_ptr<IState> mState;
+    pthread_barrier_t *mBarrier;
+    std::shared_ptr<board::IChessBoard> mBoard;
+    std::shared_ptr<chessman::IChessMan> mChessMan;
 
     std::mutex mMutex;
     std::condition_variable mWait;
     ReasonWeakUp mReasonWeakUp;
+
 };
 
 enum class ParticipantGame::ReasonWeakUp

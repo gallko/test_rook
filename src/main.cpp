@@ -8,7 +8,6 @@
 
 int main(int argc, char **argv) {
 
-    ChessBoardImpl impl;
 
     return EXIT_SUCCESS;
 }

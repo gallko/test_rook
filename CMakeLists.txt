@@ -15,15 +15,13 @@ set(SOURCES
         src/main.cpp
         src/TreadBase.cpp
         src/ChessBoardImpl.cpp
-        src/ChessRookImpl.cpp
-        src/GameRulesImpl.cpp
+        src/ChessManImpl.cpp
+        src/GameRules.cpp
         src/ParticipantGame.cpp
         src/state/DoStepState.cpp
         src/state/WaitNextStepState.cpp
         src/state/WaitBlockStep.cpp
 )
-
-add_definitions(-DSIZE_BOARD=8)
 
 include_directories(include)
 

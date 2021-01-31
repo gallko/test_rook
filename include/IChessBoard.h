@@ -11,25 +11,42 @@ namespace chessman {
 
 namespace board {
 
-class INotifier: public RemoveCopyMove
+enum class ReasonReject
+{
+    boardStopped,
+    incorrectCoordinate,
+    idMismatch,
+    incorrectId,
+    duplicateId,
+    waiterNotFound
+};
+
+class INotifier: public virtual RemoveCopyMove
 {
 public:
     ~INotifier() override = default;
-    virtual void moved(std::int32_t id, const Coordinate &to) = 0;
-    virtual void placed(std::int32_t id, const Coordinate &to) = 0;
-    virtual void removed(std::int32_t id, const Coordinate &from) = 0;
-    virtual void waitingForCell(std::int32_t id, const Coordinate &to) = 0;
-    virtual void reject(std::int32_t id) = 0;
+    virtual void placed(std::uint32_t id, const Coordinate &to) noexcept = 0;
+    virtual void moved(std::uint32_t id, const Coordinate &from, const Coordinate &to) noexcept = 0;
+    virtual void cancelMoved(std::uint32_t id, const Coordinate &from, const Coordinate &to) noexcept = 0;
+    virtual void removed(std::uint32_t id, const Coordinate &from) noexcept = 0;
+    virtual void waitingForCell(std::uint32_t id, const Coordinate &from, const Coordinate &to) noexcept = 0;
+    virtual void reject(std::uint32_t id, ReasonReject reason) noexcept = 0;
 };
 
-class IChessBoard : public RemoveCopyMove {
+class IChessBoard : public virtual RemoveCopyMove {
 public:
     ~IChessBoard() override = default;
 
-    virtual bool moveFigure(const chessman::IChessMan &figure, const Coordinate &to, std::shared_ptr<INotifier> notifier) = 0;
-    virtual bool placeFigure(const chessman::IChessMan &figure, const Coordinate &to, std::shared_ptr<INotifier> notifier) = 0;
-    virtual bool removeFigure(const chessman::IChessMan &figure, std::shared_ptr<INotifier> notifier) = 0;
+    virtual void addNotifier(std::shared_ptr<INotifier> notifier) = 0;
+    virtual void removeNotifier(std::shared_ptr<INotifier> notifier) = 0;
+
+    virtual void placeFigure(const chessman::IChessMan &figure, const Coordinate &to) = 0;
+    virtual void moveFigure(const chessman::IChessMan &figure, const Coordinate &to) = 0;
+    virtual void cancelMoveFigure(const chessman::IChessMan &figure, const Coordinate &to) = 0;
+    virtual void removeFigure(const chessman::IChessMan &figure) = 0;
     virtual std::uint8_t sizeBoard() const noexcept = 0;
+
+    static constexpr std::uint32_t sEmptyCell = 0;
 };
 
 

@@ -5,20 +5,21 @@
 #include "RemoveCopyMove.h"
 
 
-class TreadBase : public RemoveCopyMove
+class TreadBase : public virtual RemoveCopyMove
 {
 public:
     explicit TreadBase(std::string name);
-    ~TreadBase() override;
+    ~TreadBase() override = default;
 
+protected:
     void start();
     void cancel();
 
-protected:
     virtual void onStart() {};
     virtual void loop() = 0;
     virtual void onStop() {};
 
+    void join();
 private:
     void mainLoop();
 
