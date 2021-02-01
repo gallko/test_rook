@@ -81,11 +81,6 @@ void ParticipantGame::loop()
     }
 }
 
-void ParticipantGame::onStop()
-{
-
-}
-
 /* ************************************************************
  * IMPL board::INotifier
  * ************************************************************/
@@ -124,7 +119,7 @@ void ParticipantGame::removed(std::uint32_t id, const Coordinate &from) noexcept
     if (std::lock_guard lock(mMutex); id == mChessMan->getID() && mReasonWeakUp != ParticipantGame::ReasonWeakUp::stop)
     {
         mReasonWeakUp = ParticipantGame::ReasonWeakUp::next_step;
-        mEvent = std::make_unique<Event>(Event::Type::cancelMoved, id, from, invalidCoordinate, ReasonReject::empty);
+        mEvent = std::make_unique<Event>(Event::Type::remove, id, from, invalidCoordinate, ReasonReject::empty);
         mWait.notify_all();
     }
 }
@@ -144,7 +139,7 @@ void ParticipantGame::reject(std::uint32_t id, board::ReasonReject reason) noexc
     if (std::lock_guard lock(mMutex); id == mChessMan->getID() && mReasonWeakUp != ParticipantGame::ReasonWeakUp::stop)
     {
         mReasonWeakUp = ParticipantGame::ReasonWeakUp::next_step;
-        mEvent = std::make_unique<Event>(Event::Type::waitingForCell, id, invalidCoordinate, invalidCoordinate, reason);
+        mEvent = std::make_unique<Event>(Event::Type::reject, id, invalidCoordinate, invalidCoordinate, reason);
         mWait.notify_all();
     }
 }

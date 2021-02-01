@@ -6,7 +6,7 @@
 namespace board
 {
 using Coordinate = std::pair<std::int8_t /* x */, std::int8_t /* y */>;
-inline constexpr Coordinate invalidCoordinate{-1, 1};
+inline constexpr Coordinate invalidCoordinate{-1, -1};
 }
 
 template <class N, typename = std::enable_if_t< std::is_integral_v<N> >>

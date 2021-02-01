@@ -37,7 +37,6 @@ protected:
 
     void onStart() override;
     void loop() override;
-    void onStop() override;
 
 private:
     enum class ReasonWeakUp;
@@ -61,7 +60,7 @@ enum class ParticipantGame::ReasonWeakUp
 
 struct ParticipantGame::Event {
     enum class Type {
-        stop, placed, moved, cancelMoved, waitingForCell, reject
+        stop, placed, moved, remove, cancelMoved, waitingForCell, reject
     };
 
     Event(Type type, std::uint32_t id, board::Coordinate from, board::Coordinate to, board::ReasonReject reasonReject)

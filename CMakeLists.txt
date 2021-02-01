@@ -18,6 +18,7 @@ set(SOURCES
         src/ChessManImpl.cpp
         src/GameRules.cpp
         src/ParticipantGame.cpp
+        src/Logger.cpp
         src/state/NextStepState.cpp
         src/state/StopState.cpp
         src/state/WaitForCellStep.cpp

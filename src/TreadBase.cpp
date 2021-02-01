@@ -33,5 +33,6 @@ void TreadBase::join()
 {
     if (mTread) {
         mTread->join();
+        mTread.reset();
     }
 }

@@ -30,11 +30,15 @@ std::unique_ptr<ParticipantGame::IState> WaitForCellStep::doWork(std::unique_ptr
             case ParticipantGame::Event::Type::stop:
                 result = std::make_unique<StopState>();
                 mBoard->cancelMoveFigure(*mChessMan, mToCoordinate);
+                mBoard->removeFigure(*mChessMan);
                 break;
             case ParticipantGame::Event::Type::placed:
             case ParticipantGame::Event::Type::moved:
                 mChessMan->setCurrentCoordinate(ptr->mToCoordinate);
                 result = std::make_unique<NextStepState>(mBoard, mChessMan);
+                break;
+            case ParticipantGame::Event::Type::remove:
+                result = std::make_unique<StopState>();
                 break;
             case ParticipantGame::Event::Type::reject:
                 switch (ptr->mReasonReject) {

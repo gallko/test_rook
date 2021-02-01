@@ -40,6 +40,9 @@ std::unique_ptr<ParticipantGame::IState> WaitForConfirmStep::doWork(std::unique_
             case ParticipantGame::Event::Type::waitingForCell:
                 result = std::make_unique<WaitForCellStep>(mBoard, mChessMan, ptr->mToCoordinate);
                 break;
+            case ParticipantGame::Event::Type::remove:
+                result = std::make_unique<StopState>();
+                break;
             case ParticipantGame::Event::Type::reject:
                 switch (ptr->mReasonReject) {
                     case board::ReasonReject::boardStopped:

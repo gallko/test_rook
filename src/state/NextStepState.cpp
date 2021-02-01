@@ -23,11 +23,13 @@ std::unique_ptr<ParticipantGame::IState> NextStepState::doWork(std::unique_ptr<P
         result = std::make_unique<WaitForConfirmStep>(mBoard, mChessMan);
         mBoard->moveFigure(*mChessMan, GameRules::generateStep(*mChessMan));
     } else {
-        if (ptr->mTypeEvent == ParticipantGame::Event::Type::stop ||
-            ptr->mTypeEvent == ParticipantGame::Event::Type::reject && ptr->mReasonReject == board::ReasonReject::boardStopped)
+        if (ptr->mTypeEvent == ParticipantGame::Event::Type::stop)
         {
             result = std::make_unique<StopState>();
             mBoard->removeFigure(*mChessMan);
+        } else if (ptr->mTypeEvent == ParticipantGame::Event::Type::reject && ptr->mReasonReject == board::ReasonReject::boardStopped)
+        {
+            result = std::make_unique<StopState>();
         } else {
             throw std::logic_error("Unexpected event in NextStep class");
         }

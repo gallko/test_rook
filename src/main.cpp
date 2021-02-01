@@ -6,14 +6,15 @@
 #include "ParticipantGame.h"
 #include "Coordinate.h"
 #include "ChessManImpl.h"
-
-#include "utils_log.h"
+#include "Logger.h"
 
 int main(int argc, char **argv) {
 
-    print_help();
+    auto logger = std::make_shared<Logger>(std::cout);
+    logger->startGame();
 
     auto board = std::make_shared<ChessBoardImpl>(GameRules::sizeBoard());
+    board->addNotifier(logger);
     board->startGame();
 
     pthread_barrier_t barrier;
@@ -30,12 +31,7 @@ int main(int argc, char **argv) {
     participantGame4->startGame();
 
     using namespace std::chrono;
-    std::this_thread::sleep_for(10s);
-    participantGame->stopGame();
-    participantGame2->stopGame();
-    participantGame3->stopGame();
-    participantGame4->stopGame();
-    std::this_thread::sleep_for(1s);
-    pthread_barrier_destroy(&barrier);
+    std::this_thread::sleep_for(20s);
+    std::cout << "exit\n";
     return EXIT_SUCCESS;
 }
