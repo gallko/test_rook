@@ -10,11 +10,11 @@ public:
 
     std::uint32_t getID() const override;
     chessman::ChessmanType getType() const override;
-    const Coordinate &getCurrentCoordinate() const override;
-    void setCurrentCoordinate(const Coordinate &coordinate) override;
+    const board::Coordinate &getCurrentCoordinate() const override;
+    void setCurrentCoordinate(const board::Coordinate &coordinate) override;
 
 private:
     const uint32_t mId;
     const chessman::ChessmanType mType;
-    Coordinate mCoordinate;
+    board::Coordinate mCoordinate;
 };

@@ -16,8 +16,8 @@ public:
 
     virtual std::uint32_t getID() const = 0;
     virtual ChessmanType getType() const = 0;
-    virtual const Coordinate &getCurrentCoordinate() const = 0;
-    virtual void setCurrentCoordinate(const Coordinate &coordinate) = 0;
+    virtual const board::Coordinate &getCurrentCoordinate() const = 0;
+    virtual void setCurrentCoordinate(const board::Coordinate &coordinate) = 0;
 };
 
 }

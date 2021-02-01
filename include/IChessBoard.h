@@ -13,6 +13,7 @@ namespace board {
 
 enum class ReasonReject
 {
+    empty,
     boardStopped,
     incorrectCoordinate,
     idMismatch,

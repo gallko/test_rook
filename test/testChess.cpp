@@ -3,6 +3,7 @@
 
 #include "ChessManImpl.h"
 
+using namespace board;
 
 TEST(ChessMenTest, type) {
     auto mChess = std::make_shared<ChessManImpl>(50, chessman::ChessmanType::rook);

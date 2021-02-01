@@ -19,12 +19,12 @@ std::uint32_t ChessManImpl::getID() const
     return mId;
 }
 
-const Coordinate &ChessManImpl::getCurrentCoordinate() const
+const board::Coordinate &ChessManImpl::getCurrentCoordinate() const
 {
     return mCoordinate;
 }
 
-void ChessManImpl::setCurrentCoordinate(const Coordinate &coordinate)
+void ChessManImpl::setCurrentCoordinate(const board::Coordinate &coordinate)
 {
     mCoordinate = coordinate;
 }

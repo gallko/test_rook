@@ -6,6 +6,7 @@
 #include "ChessBoardImpl.h"
 
 using namespace testing;
+using namespace board;
 
 class MockIChessMan : public chessman::IChessMan {
 public:
@@ -17,7 +18,7 @@ public:
     MOCK_METHOD(void, setCurrentCoordinate, (const Coordinate &coordinate), (override));
 };
 
-class MockNotifier: public board::INotifier {
+class MockNotifier: public INotifier {
 public:
     ~MockNotifier() override = default;
 
@@ -26,7 +27,7 @@ public:
     MOCK_METHOD(void, cancelMoved, (std::uint32_t id,  const Coordinate &from, const Coordinate &to), (override, noexcept));
     MOCK_METHOD(void, removed, (std::uint32_t id, const Coordinate &from), (override, noexcept));
     MOCK_METHOD(void, waitingForCell, (std::uint32_t id, const Coordinate &from, const Coordinate &to), (override, noexcept));
-    MOCK_METHOD(void, reject, (std::uint32_t id, board::ReasonReject reason), (override, noexcept));
+    MOCK_METHOD(void, reject, (std::uint32_t id, ReasonReject reason), (override, noexcept));
 };
 
 class ChessBoardTest : public Test
@@ -78,11 +79,11 @@ protected:
 
 TEST_F(ChessBoardTest, placeFigure_IncorrectId)
 {
-    EXPECT_CALL(*mockNotifier,reject(Eq(board::IChessBoard::sEmptyCell), Eq(board::ReasonReject::incorrectId))).Times(Exactly(1))
+    EXPECT_CALL(*mockNotifier,reject(Eq(IChessBoard::sEmptyCell), Eq(board::ReasonReject::incorrectId))).Times(Exactly(1))
             .WillRepeatedly(Invoke([&](std::int32_t, board::ReasonReject) {
                 waitFinished();
             }));
-    EXPECT_CALL(*mockIChessMan, getID).WillRepeatedly(Return(board::IChessBoard::sEmptyCell));
+    EXPECT_CALL(*mockIChessMan, getID).WillRepeatedly(Return(IChessBoard::sEmptyCell));
     mBoard->placeFigure(*mockIChessMan, {0, 0});
     waitForFinish();
 }
@@ -126,8 +127,8 @@ TEST_F(ChessBoardTest, placeFigure_IncorrectCoordinate)
     ON_CALL(*mockIChessMan, getCurrentCoordinate).WillByDefault(ReturnRefOfCopy(invalidCoordinate));
 
     EXPECT_CALL(*mockIChessMan, getID).Times(Exactly(7)).WillRepeatedly(Return(id));
-    EXPECT_CALL(*mockNotifier,reject(Eq(id), Eq(board::ReasonReject::incorrectCoordinate))).Times(Exactly(7))
-            .WillRepeatedly(Invoke([&](std::int32_t, board::ReasonReject) {
+    EXPECT_CALL(*mockNotifier,reject(Eq(id), Eq(ReasonReject::incorrectCoordinate))).Times(Exactly(7))
+            .WillRepeatedly(Invoke([&](std::int32_t, ReasonReject) {
                 waitFinished();
             }));
 
@@ -167,16 +168,16 @@ TEST_F(ChessBoardTest, placeFigure_DuplicateId)
     mBoard->placeFigure(*mockIChessMan, coordinate);
     waitForFinish();
 
-    EXPECT_CALL(*mockNotifier,reject(Eq(id), Eq(board::ReasonReject::duplicateId))).Times(Exactly(1))
-            .WillRepeatedly(Invoke([&](std::int32_t, board::ReasonReject) {
+    EXPECT_CALL(*mockNotifier,reject(Eq(id), Eq(ReasonReject::duplicateId))).Times(Exactly(1))
+            .WillRepeatedly(Invoke([&](std::int32_t, ReasonReject) {
                 waitFinished();
             }));
     mBoard->placeFigure(*mockIChessMan, coordinate);
     waitForFinish();
 
     coordinate = {4, 0};
-    EXPECT_CALL(*mockNotifier,reject(Eq(id), Eq(board::ReasonReject::duplicateId))).Times(Exactly(1))
-            .WillRepeatedly(Invoke([&](std::int32_t, board::ReasonReject) {
+    EXPECT_CALL(*mockNotifier,reject(Eq(id), Eq(ReasonReject::duplicateId))).Times(Exactly(1))
+            .WillRepeatedly(Invoke([&](std::int32_t, ReasonReject) {
                 waitFinished();
             }));
     mBoard->placeFigure(*mockIChessMan, coordinate);
@@ -206,12 +207,12 @@ TEST_F(ChessBoardTest, placeFigure_ToBusyCell)
     mBoard->placeFigure(*mockIChessMan, {5, 5});
     waitForFinish();
 
-    EXPECT_CALL(*mockNotifier,reject(Eq(10), Eq(board::ReasonReject::boardStopped))).Times(Exactly(1))
-            .WillOnce(Invoke([&](std::int32_t, board::ReasonReject) {
+    EXPECT_CALL(*mockNotifier,reject(Eq(10), Eq(ReasonReject::boardStopped))).Times(Exactly(1))
+            .WillOnce(Invoke([&](std::int32_t, ReasonReject) {
                 waitFinished();
             }));
-    EXPECT_CALL(*mockNotifier,reject(Eq(20), Eq(board::ReasonReject::boardStopped))).Times(Exactly(1))
-            .WillOnce(Invoke([&](std::int32_t, board::ReasonReject) {
+    EXPECT_CALL(*mockNotifier,reject(Eq(20), Eq(ReasonReject::boardStopped))).Times(Exactly(1))
+            .WillOnce(Invoke([&](std::int32_t, ReasonReject) {
                 waitFinished();
             }));
     mBoard->stopGame();
@@ -222,11 +223,11 @@ TEST_F(ChessBoardTest, moveFigure_IncorrectId)
 {
     EXPECT_CALL(*mockIChessMan, getCurrentCoordinate).Times(Exactly(1))
             .WillOnce(ReturnRefOfCopy(Coordinate{5, 5}));
-    EXPECT_CALL(*mockNotifier,reject(Eq(board::IChessBoard::sEmptyCell), Eq(board::ReasonReject::incorrectId))).Times(Exactly(1))
-            .WillRepeatedly(Invoke([&](std::int32_t, board::ReasonReject) {
+    EXPECT_CALL(*mockNotifier,reject(Eq(IChessBoard::sEmptyCell), Eq(board::ReasonReject::incorrectId))).Times(Exactly(1))
+            .WillRepeatedly(Invoke([&](std::int32_t, ReasonReject) {
                 waitFinished();
             }));
-    EXPECT_CALL(*mockIChessMan, getID).WillRepeatedly(Return(board::IChessBoard::sEmptyCell));
+    EXPECT_CALL(*mockIChessMan, getID).WillRepeatedly(Return(IChessBoard::sEmptyCell));
 
     mBoard->moveFigure(*mockIChessMan, {0, 0});
     waitForFinish();
@@ -237,8 +238,8 @@ TEST_F(ChessBoardTest, moveFigure_IdMismatch)
     EXPECT_CALL(*mockIChessMan, getCurrentCoordinate).Times(Exactly(1))
             .WillOnce(ReturnRefOfCopy(Coordinate{5, 5}));
 
-    EXPECT_CALL(*mockNotifier,reject(Eq(50), Eq(board::ReasonReject::idMismatch))).Times(Exactly(1))
-            .WillRepeatedly(Invoke([&](std::int32_t, board::ReasonReject) {
+    EXPECT_CALL(*mockNotifier,reject(Eq(50), Eq(ReasonReject::idMismatch))).Times(Exactly(1))
+            .WillRepeatedly(Invoke([&](std::int32_t, ReasonReject) {
                 waitFinished();
             }));
     EXPECT_CALL(*mockIChessMan, getID).WillRepeatedly(Return(50));
@@ -249,8 +250,8 @@ TEST_F(ChessBoardTest, moveFigure_IdMismatch)
 
 TEST_F(ChessBoardTest, moveFigure_IncorrectCoordinate)
 {
-    EXPECT_CALL(*mockNotifier,reject(Eq(5), Eq(board::ReasonReject::incorrectCoordinate))).Times(Exactly(6))
-            .WillRepeatedly(Invoke([&](std::int32_t, board::ReasonReject) {
+    EXPECT_CALL(*mockNotifier,reject(Eq(5), Eq(ReasonReject::incorrectCoordinate))).Times(Exactly(6))
+            .WillRepeatedly(Invoke([&](std::int32_t, ReasonReject) {
                 waitFinished();
             }));
     EXPECT_CALL(*mockIChessMan, getID).WillRepeatedly(Return(5));
@@ -375,12 +376,12 @@ TEST_F(ChessBoardTest, removeFigure_IncorrectId)
 
     EXPECT_CALL(*mockIChessMan, getCurrentCoordinate).Times(Exactly(1))
             .WillOnce(ReturnRefOfCopy(Coordinate{5, 5}));
-    EXPECT_CALL(*mockNotifier,reject(Eq(board::IChessBoard::sEmptyCell), Eq(board::ReasonReject::incorrectId)))
+    EXPECT_CALL(*mockNotifier,reject(Eq(IChessBoard::sEmptyCell), Eq(board::ReasonReject::incorrectId)))
             .Times(Exactly(1))
-            .WillRepeatedly(Invoke([&](std::int32_t, board::ReasonReject) {
+            .WillRepeatedly(Invoke([&](std::int32_t, ReasonReject) {
                 waitFinished();
             }));
-    EXPECT_CALL(*mockIChessMan, getID).WillRepeatedly(Return(board::IChessBoard::sEmptyCell));
+    EXPECT_CALL(*mockIChessMan, getID).WillRepeatedly(Return(IChessBoard::sEmptyCell));
     mBoard->removeFigure(*mockIChessMan);
     waitForFinish();
 }
@@ -396,9 +397,9 @@ TEST_F(ChessBoardTest, removeFigure_IncorrectCoordinate)
 
     EXPECT_CALL(*mockIChessMan, getCurrentCoordinate).Times(Exactly(1))
             .WillOnce(ReturnRefOfCopy(Coordinate{-6, 6}));
-    EXPECT_CALL(*mockNotifier,reject(Eq(5), Eq(board::ReasonReject::incorrectCoordinate)))
+    EXPECT_CALL(*mockNotifier,reject(Eq(5), Eq(ReasonReject::incorrectCoordinate)))
             .Times(Exactly(1))
-            .WillRepeatedly(Invoke([&](std::int32_t, board::ReasonReject) {
+            .WillRepeatedly(Invoke([&](std::int32_t, ReasonReject) {
                 waitFinished();
             }));
     EXPECT_CALL(*mockIChessMan, getID).WillRepeatedly(Return(5));
@@ -418,8 +419,8 @@ TEST_F(ChessBoardTest, removeFigure_IdMismatch)
     EXPECT_CALL(*mockIChessMan, getCurrentCoordinate).Times(Exactly(1))
             .WillOnce(ReturnRefOfCopy(Coordinate{5, 5}));
 
-    EXPECT_CALL(*mockNotifier,reject(Eq(50), Eq(board::ReasonReject::idMismatch))).Times(Exactly(1))
-            .WillRepeatedly(Invoke([&](std::int32_t, board::ReasonReject) {
+    EXPECT_CALL(*mockNotifier,reject(Eq(50), Eq(ReasonReject::idMismatch))).Times(Exactly(1))
+            .WillRepeatedly(Invoke([&](std::int32_t, ReasonReject) {
                 waitFinished();
             }));
     EXPECT_CALL(*mockIChessMan, getID).WillRepeatedly(Return(50));
@@ -581,8 +582,8 @@ TEST_F(ChessBoardTest, cancelMoveFigure_waiterNotFound)
     waitForFinish();
 
     // cancel from id:20 {0,0} to {5,5}
-    EXPECT_CALL(*mockNotifier, reject(Eq(20), Eq(board::ReasonReject::waiterNotFound))).Times(Exactly(1))
-            .WillRepeatedly(Invoke([&](std::int32_t id, board::ReasonReject) {
+    EXPECT_CALL(*mockNotifier, reject(Eq(20), Eq(ReasonReject::waiterNotFound))).Times(Exactly(1))
+            .WillRepeatedly(Invoke([&](std::int32_t id, ReasonReject) {
                 waitFinished();
             }));
     mBoard->cancelMoveFigure(*mockIChessMan, {5, 5});

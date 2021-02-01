@@ -12,9 +12,10 @@ file(GLOB TEST_SOURCES
         ../src/ChessManImpl.cpp
         ../src/GameRules.cpp
         ../src/ParticipantGame.cpp
-#        ../src/state/DoStepState.cpp
-#        ../src/state/WaitNextStepState.cpp
-#        ../src/state/WaitBlockStep.h
+        ../src/state/WaitForCellStep.cpp
+        ../src/state/WaitForConfirmStep.cpp
+        ../src/state/NextStepState.cpp
+        ../src/state/StopState.cpp
 )
 
 include_directories(

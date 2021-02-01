@@ -1,10 +1,13 @@
 #include <iostream>
-#include <algorithm>
 #include <functional>
 #include "ChessBoardImpl.h"
 #include "Coordinate.h"
 #include "IChessMan.h"
 #include "GameRules.h"
+
+#include "utils_log.h"
+
+using namespace board;
 
 ChessBoardImpl::ChessBoardImpl(std::uint8_t sizeBoard)
     : IChessBoard()
@@ -192,10 +195,12 @@ void ChessBoardImpl::do_place(std::uint32_t id, const Coordinate &to_coordinate)
                 to_cell.first = id;
                 mIds.insert(id);
                 notifyAll(&INotifier::placed, id, to_coordinate);
+                print_action(id, Action::placed, to_coordinate);
             } else {
                 mIds.insert(id);
                 to_cell.second.emplace_back(id, invalidCoordinate);
                 notifyAll(&INotifier::waitingForCell, id, invalidCoordinate, to_coordinate);
+                print_action(id, Action::wait, to_coordinate);
             }
         } catch (std::out_of_range &) {
             notifyAll(&INotifier::reject, id, board::ReasonReject::incorrectCoordinate);
@@ -217,10 +222,12 @@ void ChessBoardImpl::do_move(std::uint32_t id, const Coordinate &from_coordinate
                 from_cell.first = sEmptyCell;
                 to_cell.first = id;
                 notifyAll(&INotifier::moved, id, from_coordinate, to_coordinate);
+                print_action(id, from_coordinate, Action::moved, to_coordinate);
                 do_check_waiting(from_coordinate);
             } else {
                 to_cell.second.emplace_back(id, from_coordinate);
                 notifyAll(&INotifier::waitingForCell, id, from_coordinate, to_coordinate);
+                print_action(id, from_coordinate, Action::wait, to_coordinate);
             }
         } else {
             notifyAll(&INotifier::reject, id, board::ReasonReject::idMismatch);
@@ -245,6 +252,7 @@ void ChessBoardImpl::do_cancel_move(std::uint32_t id, const Coordinate &from_coo
             {
                 wait_list.erase(it);
                 notifyAll(&INotifier::cancelMoved, id, from_coordinate, to_coordinate);
+                print_action(id, from_coordinate, Action::cancel_wait, to_coordinate);
             } else {
                 notifyAll(&INotifier::reject, id, board::ReasonReject::waiterNotFound);
             }
@@ -266,6 +274,7 @@ void ChessBoardImpl::do_remove(std::uint32_t id, const Coordinate &from_coordina
             from_cell.first = sEmptyCell;
             mIds.erase(id);
             notifyAll(&INotifier::removed, id, from_coordinate);
+            print_action(id, Action::deleted, from_coordinate);
             do_check_waiting(from_coordinate);
         } else {
             notifyAll(&INotifier::reject, id, board::ReasonReject::idMismatch);
@@ -298,10 +307,7 @@ template<typename Func, typename... Args>
 void ChessBoardImpl::notifyAll(Func &&func, Args&&... args) const
 {
     std::unique_lock lock(mMutexNotifier);
-    auto copy = mListNotifiers;
-    lock.unlock();
-
-    for (auto &notifier: copy) {
+    for (auto &notifier: mListNotifiers) {
         std::invoke(std::forward<Func>(func), *notifier, std::forward<Args>(args)...);
     }
 }

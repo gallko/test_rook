@@ -3,6 +3,10 @@
 #include "IChessMan.h"
 #include "ChessManImpl.h"
 
+using namespace board;
+
+static thread_local std::mt19937 mGen{std::random_device()() };
+
 bool GameRules::checkStep(const std::shared_ptr<chessman::IChessMan> &chessMan, const Coordinate &coordinate)
 {
     auto result = false;
@@ -16,33 +20,36 @@ bool GameRules::checkStep(const std::shared_ptr<chessman::IChessMan> &chessMan, 
     return result;
 }
 
+board::Coordinate GameRules::generateFirstStep() {
+    std::uniform_int_distribution<> distribution_step(0, sizeBoard() - 1);
+    return board::Coordinate(distribution_step(mGen), distribution_step(mGen));
+}
+
+
 Coordinate GameRules::generateStep(const chessman::IChessMan &chessMan)
 {
-    static thread_local std::mt19937 mGen{std::random_device()() };
-
     Coordinate result;
-    if (chessMan.getType() == chessman::ChessmanType::rook)
     {
        std::uniform_int_distribution distribution_direction(0, 1);
        auto &coordinate = chessMan.getCurrentCoordinate();
        if (distribution_direction(mGen))
        {   // change x
-           std::uniform_int_distribution<> distribution_step(0 - coordinate.first, sizeBoard() - coordinate.first);
-           int32_t delta;
+           std::uniform_int_distribution<> distribution_step(0 - coordinate.first, sizeBoard() - 1 - coordinate.first);
+           Coordinate::first_type delta;
            do {
-               delta = distribution_step(mGen);
+               delta = static_cast<Coordinate::first_type>(distribution_step(mGen));
            } while (!delta);
-           result.first = coordinate.first + delta;
+           result.first = static_cast<Coordinate::first_type>(coordinate.first + delta);
            result.second = coordinate.second;
        } else {
            // change y
-           std::uniform_int_distribution<> distribution_step(0 - coordinate.second, sizeBoard() - coordinate.second);
-           int32_t delta;
+           std::uniform_int_distribution<> distribution_step(0 - coordinate.second, sizeBoard() - 1 - coordinate.second);
+           Coordinate::second_type delta;
            do {
-               delta = distribution_step(mGen);
+               delta = static_cast<Coordinate::second_type>(distribution_step(mGen));
            } while (!delta);
            result.first = coordinate.first;
-           result.second = coordinate.second + delta;
+           result.second = static_cast<Coordinate::second_type>(coordinate.second + delta);
        }
     }
 
@@ -58,5 +65,21 @@ std::uint32_t GameRules::generateId()
 std::shared_ptr<chessman::IChessMan> GameRules::makeChessMan(chessman::ChessmanType type)
 {
     return std::make_shared<ChessManImpl>(generateId(), type);
+}
+
+std::chrono::milliseconds GameRules::generateDelayWaitNextStep()
+{
+    std::uniform_int_distribution distribution_direction(200, 300);
+    return std::chrono::milliseconds(distribution_direction(mGen));
+}
+
+std::chrono::milliseconds GameRules::generateDelayWaitForCell()
+{
+    return std::chrono::milliseconds(5000);
+}
+
+std::chrono::milliseconds GameRules::generateDelayConfirm()
+{
+    return std::chrono::milliseconds(100);
 }
 

@@ -18,9 +18,10 @@ set(SOURCES
         src/ChessManImpl.cpp
         src/GameRules.cpp
         src/ParticipantGame.cpp
-        src/state/DoStepState.cpp
-        src/state/WaitNextStepState.cpp
-        src/state/WaitBlockStep.cpp
+        src/state/NextStepState.cpp
+        src/state/StopState.cpp
+        src/state/WaitForCellStep.cpp
+        src/state/WaitForConfirmStep.cpp
 )
 
 include_directories(include)

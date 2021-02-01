@@ -31,5 +31,7 @@ void TreadBase::mainLoop()
 
 void TreadBase::join()
 {
-    mTread->join();
+    if (mTread) {
+        mTread->join();
+    }
 }
