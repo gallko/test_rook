@@ -5,12 +5,6 @@ project(ChessRook
 
 find_package(Threads REQUIRED)
 
-find_package(GTest)
-if (GTEST_FOUND)
-    enable_testing()
-    add_subdirectory(test)
-endif ()
-
 set(SOURCES
         src/main.cpp
         src/TreadBase.cpp
@@ -19,6 +13,7 @@ set(SOURCES
         src/GameRules.cpp
         src/ParticipantGame.cpp
         src/Logger.cpp
+        src/Game.cpp
         src/state/NextStepState.cpp
         src/state/StopState.cpp
         src/state/WaitForCellStep.cpp

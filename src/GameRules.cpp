@@ -1,4 +1,6 @@
 #include <atomic>
+#include <random>
+
 #include "GameRules.h"
 #include "IChessMan.h"
 #include "ChessManImpl.h"
@@ -24,7 +26,6 @@ board::Coordinate GameRules::generateFirstStep() {
     std::uniform_int_distribution<> distribution_step(0, sizeBoard() - 1);
     return board::Coordinate(distribution_step(mGen), distribution_step(mGen));
 }
-
 
 Coordinate GameRules::generateStep(const chessman::IChessMan &chessMan)
 {
@@ -82,4 +83,3 @@ std::chrono::milliseconds GameRules::generateDelayConfirm()
 {
     return std::chrono::milliseconds(100);
 }
-

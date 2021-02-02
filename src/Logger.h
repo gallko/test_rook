@@ -17,7 +17,6 @@ public:
     ~Logger() override;
 
     void startGame() override;
-
     void stopGame() override;
 
 protected:

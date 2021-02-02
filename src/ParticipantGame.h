@@ -21,7 +21,9 @@ public:
     class IState;
     struct Event;
 
-    ParticipantGame(std::shared_ptr<board::IChessBoard> board, pthread_barrier_t *barrier);
+    ParticipantGame(std::shared_ptr<board::IChessBoard> board, size_t countStep,
+                    std::weak_ptr<pthread_barrier_t> startBarrier,
+                    std::weak_ptr<pthread_barrier_t> endBarrier);
     ~ParticipantGame() override;
 
     void startGame() override;
@@ -37,20 +39,23 @@ protected:
 
     void onStart() override;
     void loop() override;
+    void onStop() override;
 
 private:
     enum class ReasonWeakUp;
 
-    pthread_barrier_t *mBarrier;
+    std::weak_ptr<pthread_barrier_t> mStartBarrier, mEndBarrier;
     std::shared_ptr<board::IChessBoard> mBoard;
     std::shared_ptr<chessman::IChessMan> mChessMan;
 
     std::mutex mMutex;
     std::condition_variable mWait;
     ReasonWeakUp mReasonWeakUp;
-    std::unique_ptr<Event> mEvent;
+    std::list<std::unique_ptr<Event>> mEvents;
+    std::size_t mCounterStep;
 
     std::unique_ptr<IState> mState;
+    std::shared_ptr<ParticipantGame> pThis;
 };
 
 enum class ParticipantGame::ReasonWeakUp
@@ -63,10 +68,8 @@ struct ParticipantGame::Event {
         stop, placed, moved, remove, cancelMoved, waitingForCell, reject
     };
 
-    Event(Type type, std::uint32_t id, board::Coordinate from, board::Coordinate to, board::ReasonReject reasonReject)
+    Event(Type type, board::Coordinate to, board::ReasonReject reasonReject)
             : mTypeEvent(type)
-            , mId(id)
-            , mFromCoordinate(std::move(from))
             , mToCoordinate(std::move(to))
             , mReasonReject(reasonReject)
     {
@@ -74,8 +77,6 @@ struct ParticipantGame::Event {
     }
 
     const Type mTypeEvent;
-    const std::uint32_t mId;
-    const board::Coordinate mFromCoordinate;
     const board::Coordinate mToCoordinate;
     const board::ReasonReject mReasonReject;
 };

@@ -1,25 +1,31 @@
+#include <iostream>
 #include "ParticipantGame.h"
 #include "GameRules.h"
+#include "IChessMan.h"
 #include "state/WaitForConfirmStep.h"
-
 
 using namespace board;
 
-ParticipantGame::ParticipantGame(std::shared_ptr<board::IChessBoard> board, pthread_barrier_t *barrier)
+ParticipantGame::ParticipantGame(std::shared_ptr<board::IChessBoard> board, size_t countStep,
+                                 std::weak_ptr<pthread_barrier_t> startBarrier,
+                                 std::weak_ptr<pthread_barrier_t> endBarrier)
         : TreadBase("ParticipantGame")
-        , mBarrier(barrier)
+        , mStartBarrier(std::move(startBarrier))
+        , mEndBarrier(std::move(endBarrier))
         , mBoard(std::move(board))
         , mChessMan(nullptr)
         , mMutex()
         , mWait()
         , mReasonWeakUp(ParticipantGame::ReasonWeakUp::start)
+        , mCounterStep(countStep)
+        , pThis(nullptr)
 {
 
 }
 
 ParticipantGame::~ParticipantGame()
 {
-    join();
+    TreadBase::join();
 }
 
 /* ************************************************************
@@ -49,9 +55,10 @@ void ParticipantGame::stopGame()
  * ************************************************************/
 void ParticipantGame::onStart()
 {
-    if (mBarrier)
+    pThis = shared_from_this();
+    if (auto barrier = mStartBarrier.lock(); barrier)
     {
-        pthread_barrier_wait(mBarrier);
+        pthread_barrier_wait(barrier.get());
     }
     mState = std::make_unique<WaitForConfirmStep>(mBoard, mChessMan);
     mBoard->placeFigure(*mChessMan, GameRules::generateFirstStep());
@@ -65,20 +72,32 @@ void ParticipantGame::loop()
         {
             std::unique_lock lock(mMutex);
             mWait.wait_for(lock, mState->waitPeriod(), [&]() {
-                return mEvent != nullptr;
+                return !mEvents.empty();
             });
-            if (mReasonWeakUp != ReasonWeakUp::stop)
+            if (mReasonWeakUp == ReasonWeakUp::stop)
             {
-                event = std::move(mEvent);
-            } else {
-                event = std::make_unique<Event>(ParticipantGame::Event::Type::stop, 0,
-                                                board::invalidCoordinate, board::invalidCoordinate,
-                                                board::ReasonReject::empty);
+                mEvents.emplace_back(std::make_unique<Event>(ParticipantGame::Event::Type::stop,
+                                     board::invalidCoordinate,
+                                     board::ReasonReject::empty));
+            }
+            if (!mEvents.empty())
+            {
+                event = std::move(mEvents.front());
+                mEvents.pop_front();
             }
         }
 
         mState = mState->doWork(std::move(event));
     }
+}
+
+void ParticipantGame::onStop()
+{
+    if (auto barrier = mEndBarrier.lock(); barrier)
+    {
+        pthread_barrier_wait(barrier.get());
+    }
+    pThis.reset();
 }
 
 /* ************************************************************
@@ -89,7 +108,7 @@ void ParticipantGame::placed(std::uint32_t id, const board::Coordinate &to) noex
     if (std::lock_guard lock(mMutex); id == mChessMan->getID() && mReasonWeakUp != ParticipantGame::ReasonWeakUp::stop)
     {
         mReasonWeakUp = ParticipantGame::ReasonWeakUp::next_step;
-        mEvent = std::make_unique<Event>(Event::Type::placed, id, invalidCoordinate, to, board::ReasonReject::empty);
+        mEvents.emplace_back(std::make_unique<Event>(Event::Type::placed, to, board::ReasonReject::empty));
         mWait.notify_all();
     }
 }
@@ -98,8 +117,13 @@ void ParticipantGame::moved(std::uint32_t id, const Coordinate &from, const Coor
 {
     if (std::lock_guard lock(mMutex); id == mChessMan->getID() && mReasonWeakUp != ParticipantGame::ReasonWeakUp::stop)
     {
-        mReasonWeakUp = ParticipantGame::ReasonWeakUp::next_step;
-        mEvent = std::make_unique<Event>(Event::Type::moved, id, from, to, ReasonReject::empty);
+        mEvents.emplace_back(std::make_unique<Event>(Event::Type::moved, to, ReasonReject::empty));
+        if (--mCounterStep)
+        {
+            mReasonWeakUp = ParticipantGame::ReasonWeakUp::next_step;
+        } else {
+            mReasonWeakUp = ParticipantGame::ReasonWeakUp::stop;
+        }
         mWait.notify_all();
     }
 }
@@ -109,7 +133,7 @@ void ParticipantGame::cancelMoved(std::uint32_t id, const Coordinate &from, cons
     if (std::lock_guard lock(mMutex); id == mChessMan->getID() && mReasonWeakUp != ParticipantGame::ReasonWeakUp::stop)
     {
         mReasonWeakUp = ParticipantGame::ReasonWeakUp::next_step;
-        mEvent = std::make_unique<Event>(Event::Type::cancelMoved, id, from, to, ReasonReject::empty);
+        mEvents.emplace_back(std::make_unique<Event>(Event::Type::cancelMoved, to, ReasonReject::empty));
         mWait.notify_all();
     }
 }
@@ -119,7 +143,7 @@ void ParticipantGame::removed(std::uint32_t id, const Coordinate &from) noexcept
     if (std::lock_guard lock(mMutex); id == mChessMan->getID() && mReasonWeakUp != ParticipantGame::ReasonWeakUp::stop)
     {
         mReasonWeakUp = ParticipantGame::ReasonWeakUp::next_step;
-        mEvent = std::make_unique<Event>(Event::Type::remove, id, from, invalidCoordinate, ReasonReject::empty);
+        mEvents.emplace_back(std::make_unique<Event>(Event::Type::remove, invalidCoordinate, ReasonReject::empty));
         mWait.notify_all();
     }
 }
@@ -129,7 +153,7 @@ void ParticipantGame::waitingForCell(std::uint32_t id, const Coordinate &from, c
     if (std::lock_guard lock(mMutex); id == mChessMan->getID() && mReasonWeakUp != ParticipantGame::ReasonWeakUp::stop)
     {
         mReasonWeakUp = ParticipantGame::ReasonWeakUp::next_step;
-        mEvent = std::make_unique<Event>(Event::Type::waitingForCell, id, from, to, ReasonReject::empty);
+        mEvents.emplace_back(std::make_unique<Event>(Event::Type::waitingForCell, to, ReasonReject::empty));
         mWait.notify_all();
     }
 }
@@ -139,7 +163,7 @@ void ParticipantGame::reject(std::uint32_t id, board::ReasonReject reason) noexc
     if (std::lock_guard lock(mMutex); id == mChessMan->getID() && mReasonWeakUp != ParticipantGame::ReasonWeakUp::stop)
     {
         mReasonWeakUp = ParticipantGame::ReasonWeakUp::next_step;
-        mEvent = std::make_unique<Event>(Event::Type::reject, id, invalidCoordinate, invalidCoordinate, reason);
+        mEvents.emplace_back(std::make_unique<Event>(Event::Type::reject, invalidCoordinate, reason));
         mWait.notify_all();
     }
 }

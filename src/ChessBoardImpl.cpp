@@ -29,7 +29,7 @@ ChessBoardImpl::~ChessBoardImpl()
         mReasonWeakUp = ReasonWeakUp::exit;
         mWait.notify_all();
     }
-    join();
+    TreadBase::join();
 }
 
 /* ************************************************************
@@ -195,6 +195,7 @@ void ChessBoardImpl::do_place(std::uint32_t id, const Coordinate &to_coordinate)
                 notifyAll(&INotifier::placed, id, to_coordinate);
             } else {
                 to_cell.second.emplace_back(id, invalidCoordinate);
+                mIds.insert(id);
                 notifyAll(&INotifier::waitingForCell, id, invalidCoordinate, to_coordinate);
             }
         } catch (std::out_of_range &) {
@@ -283,16 +284,17 @@ void ChessBoardImpl::do_check_waiting(const Coordinate &current_coordinate)
     bool flag = true;
     while (!waiting_list.empty() && flag)
     {
-        auto &w = waiting_list.front();
-        if (mIds.find(w.first) != mIds.end())
+        auto &wait_element = waiting_list.front();
+        if (mIds.find(wait_element.first) != mIds.end())
         {
-            flag = false;
-            std::lock_guard lock(mMutexTasks);
-            mTaskList.emplace_front(Task::Type::move, w.first, w.second, current_coordinate);
-        } else {
-            if (w.second == invalidCoordinate)
+            if (wait_element.second != invalidCoordinate)
             {
-                mTaskList.emplace_front(Task::Type::place, w.first, Coordinate(), current_coordinate);
+                flag = false;
+                do_move(wait_element.first, wait_element.second, current_coordinate);
+            } else {
+                to_cell.first = wait_element.first;
+                notifyAll(&INotifier::placed, wait_element.first, current_coordinate);
+                flag = false;
             }
         }
         waiting_list.pop_front();

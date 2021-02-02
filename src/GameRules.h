@@ -1,9 +1,12 @@
 #pragma once
 
-#include <random>
 #include <memory>
 #include <chrono>
-#include "IChessMan.h"
+#include <Coordinate.h>
+#include <IChessMan.h>
+
+class ChessBoardImpl;
+class IGameElement;
 
 class GameRules
 {
@@ -13,6 +16,7 @@ public:
     static board::Coordinate generateStep(const chessman::IChessMan &chessMan);
     static constexpr std::int32_t sizeBoard();
     static std::uint32_t generateId();
+
     static std::shared_ptr<chessman::IChessMan> makeChessMan(chessman::ChessmanType type);
 
     static std::chrono::milliseconds generateDelayWaitNextStep();

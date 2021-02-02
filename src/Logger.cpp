@@ -91,7 +91,7 @@ Logger::~Logger()
     {
         mReasonWeakUp = ReasonWeakUp::exit;
         mWait.notify_all();
-        join();
+        TreadBase::join();
     }
 }
 
